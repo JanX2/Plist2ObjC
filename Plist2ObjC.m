@@ -9,46 +9,46 @@
 #import <stdio.h>
 #import <Foundation/Foundation.h>
 
+static NSString * const kIndentationString = @"\t";
 
-#define INDENT_STRING @"\t"
-
-NSString *generateIndent(NSInteger level)
+NSString *generateIndent(NSUInteger level)
 {
-	NSMutableString *s = [NSMutableString new];
-
-	for (NSInteger i = 0; i < level; i++) {
-		[s appendString:INDENT_STRING];
-	}
-
-	return s;
+	return [@"" stringByPaddingToLength:level
+							 withString:kIndentationString
+						startingAtIndex:0];
 }
 
 NSString *removeIndentation(NSString *str)
 {
-	NSInteger len = [str length];
-	NSInteger i;
-	NSInteger idx = len;
-	for (i = 0; i < len; i++) {
-		NSString *s = [str substringWithRange:NSMakeRange(i, 1)];
-		if ([s isEqualToString:@"\t"] == NO) {
+	const NSUInteger len = str.length;
+	NSUInteger idx = 0;
+	
+	for (NSUInteger i = 0; i < len; i++) {
+		unichar c = [str characterAtIndex:i];
+		if (c != '\t') {
 			idx = i;
 			break;
 		}
 	}
 
-	return [str substringFromIndex:idx];
+	return (idx > 0) ? [str substringFromIndex:idx] : str;
 }
 
 NSString *escape(NSString *str)
 {
-	NSDictionary *replacements = @{
-		@"\"": @"\\\"",
-		@"\\": @"\\\\",
-		@"\'": @"\\\'",
-		@"\n": @"\\n",
-		@"\r": @"\\r",
-		@"\t": @"\\t"
-	};
+	static NSDictionary *replacements;
+	
+	static dispatch_once_t onceToken;
+	dispatch_once(&onceToken, ^{
+		replacements = @{
+						 @"\"": @"\\\"",
+						 @"\\": @"\\\\",
+						 @"\'": @"\\\'",
+						 @"\n": @"\\n",
+						 @"\r": @"\\r",
+						 @"\t": @"\\t"
+						 };
+	});
 
 	for (NSString *key in replacements) {
 		str = [str stringByReplacingOccurrencesOfString:key withString:replacements[key]];
@@ -58,7 +58,7 @@ NSString *escape(NSString *str)
 }
 
 @protocol Plist2ObjC_Dumpable
-- (NSString *)recursiveDump:(NSInteger)level;
+- (NSString *)recursiveDump:(NSUInteger)level;
 @end
 
 @interface NSString (Plist2ObjC) <Plist2ObjC_Dumpable>
@@ -81,7 +81,7 @@ NSString *escape(NSString *str)
 
 @implementation NSString (Plist2ObjC)
 
-- (NSString *)recursiveDump:(NSInteger)level {
+- (NSString *)recursiveDump:(NSUInteger)level {
 	return [NSString stringWithFormat:@"%@@\"%@\"",
 	                 generateIndent(level),
 	                 escape(self)
@@ -92,7 +92,7 @@ NSString *escape(NSString *str)
 
 @implementation NSNumber (Plist2ObjC)
 
-- (NSString *)recursiveDump:(NSInteger)level {
+- (NSString *)recursiveDump:(NSUInteger)level {
 	return [NSString stringWithFormat:@"%@@%@", generateIndent(level), self];
 }
 
@@ -100,12 +100,12 @@ NSString *escape(NSString *str)
 
 @implementation NSArray (Plist2ObjC)
 
-- (NSString *)recursiveDump:(NSInteger)level {
+- (NSString *)recursiveDump:(NSUInteger)level {
 	NSString *selfIndent = generateIndent(level);
-	NSString *childIndent = [selfIndent stringByAppendingString:INDENT_STRING];
+	NSString *childIndent = [selfIndent stringByAppendingString:kIndentationString];
 	NSMutableString *str = [NSMutableString stringWithString:@"@[\n"];
 
-	for (NSInteger i = 0; i < self.count; i++) {
+	for (NSUInteger i = 0; i < self.count; i++) {
 		if (i > 0) {
 			[str appendString:@",\n"];
 		}
@@ -124,25 +124,26 @@ NSString *escape(NSString *str)
 
 @implementation NSDictionary (Plist2ObjC)
 
-- (NSString *)recursiveDump:(NSInteger)level {
+- (NSString *)recursiveDump:(NSUInteger)level {
 	NSString *selfIndent = generateIndent(level);
-	NSString *childIndent = [selfIndent stringByAppendingString:INDENT_STRING];
+	NSString *childIndent = [selfIndent stringByAppendingString:kIndentationString];
 	NSMutableString *str = [NSMutableString stringWithString:@"@{\n"];
-	NSArray *keys = self.allKeys;
-
-	for (NSInteger i = 0; i < keys.count; i++) {
+	
+	__block NSUInteger i = 0;
+	[self enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
 		if (i > 0) {
 			[str appendString:@",\n"];
 		}
-
-		NSString *key = keys[i];
+		
 		[str appendFormat:@"%@%@: %@",
-		     childIndent,
-		     removeIndentation([key recursiveDump:level + 1]),
-		     removeIndentation([self[key] recursiveDump:level + 1])
-		];
-	}
-
+		 childIndent,
+		 removeIndentation([key recursiveDump:level + 1]),
+		 removeIndentation([obj recursiveDump:level + 1])
+		 ];
+		
+		i += 1;
+	}];
+	
 	[str appendFormat:@"\n%@}", selfIndent];
 	return str;
 }
@@ -155,7 +156,7 @@ NSString *escape(NSString *str)
 
 @implementation NSData (Plist2ObjC)
 
-- (NSString *)recursiveDump:(NSInteger)level {
+- (NSString *)recursiveDump:(NSUInteger)level {
 	[NSException raise:NSInvalidArgumentException
 	            format:@"Unimplemented - handling NSData is not yet supported"];
 	return nil;
@@ -165,7 +166,7 @@ NSString *escape(NSString *str)
 
 @implementation NSDate (Plist2ObjC)
 
-- (NSString *)recursiveDump:(NSInteger)level {
+- (NSString *)recursiveDump:(NSUInteger)level {
 	[NSException raise:NSInvalidArgumentException
 	            format:@"Unimplemented - handling NSDate is not yet supported"];
 	return nil;
@@ -182,30 +183,45 @@ void printUsage()
 int main(int argc, char *argv[])
 {
 	@autoreleasepool {
-		if (argc == 2) {
-			NSString *file = [NSString stringWithUTF8String:argv[1]];
-
-			id <Plist2ObjC_Dumpable> obj = [NSDictionary dictionaryWithContentsOfFile:file];
-			if (obj == nil) {
-				// not a dictionary - should be an array
-				obj = [NSArray arrayWithContentsOfFile:file];
-				if (obj == nil) {
-					// not an array either, must be an invaild file.
-					printUsage();
-					printf("Error: Invaild file supplied.\n");
-					return EXIT_FAILURE;
-				}
-
-			}
-
-			NSString *code = [obj recursiveDump:0];
-			printf("%s\n", [code UTF8String]);
-
-			return EXIT_SUCCESS;
+		NSError *error;
+		
+		NSArray *processArguments = [[NSProcessInfo processInfo] arguments];
+		NSUInteger argumentCount = processArguments.count;
+		
+		if (argumentCount != 2) {
+			printUsage();
+			printf("Error: Invalid arguments supplied.\n");
+			return EXIT_FAILURE;
 		}
-
-		printUsage();
-		printf("Error: Invaild arguments supplied.\n");
-		return EXIT_FAILURE;
+		else {
+			NSString *plistFilePath = processArguments[1];
+			NSData *plistData = [NSData dataWithContentsOfFile:plistFilePath];
+			
+			id <Plist2ObjC_Dumpable, NSObject> obj =
+			[NSPropertyListSerialization propertyListWithData:plistData
+													  options:NSPropertyListImmutable
+													   format:NULL
+														error:&error];
+			
+			if (obj &&
+				([obj isKindOfClass:[NSDictionary class]] ||
+				 [obj isKindOfClass:[NSArray class]])
+				) {
+				NSString *code = [obj recursiveDump:0];
+				printf("%s\n", [code UTF8String]);
+				
+				return EXIT_SUCCESS;
+			}
+			else {
+				// Must be an invalid file.
+				if (!obj) {
+					printf("%s\n", [[error description] UTF8String]);
+				}
+				
+				printUsage();
+				printf("Error: Invalid file supplied.\n");
+				return EXIT_FAILURE;
+			}
+		}
 	}
 }
