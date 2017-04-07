@@ -175,9 +175,70 @@ NSString *escape(NSString *str)
 @end
 
 
+// Determine a unique key for each plist.
+NSMutableArray * determineFileKeys(NSArray *plistFilePaths) {
+	NSUInteger pathCount = plistFilePaths.count;
+	
+	NSMutableArray *fileKeys = [NSMutableArray arrayWithCapacity:pathCount];
+	
+	NSUInteger componentOffset = NSNotFound;
+	
+	NSUInteger minComponentCount = NSNotFound;
+	NSMutableArray <NSArray *> *plistFilesPathComponents = [NSMutableArray arrayWithCapacity:pathCount];
+	for (NSString *plistFilePath in plistFilePaths) {
+		NSArray<NSString *> *pathComponents = [plistFilePath pathComponents];
+		[plistFilesPathComponents addObject:pathComponents];
+		
+		if (minComponentCount == NSNotFound) {
+			minComponentCount = pathComponents.count;
+		}
+		else {
+			minComponentCount = MIN(minComponentCount, pathComponents.count);
+		}
+	}
+	
+	// Find the smallest path component offset from the end, where there are no duplicates.
+	NSMutableSet *keySet = [NSMutableSet set];
+	for (NSUInteger offset = 0; offset < minComponentCount; offset += 1) {
+		BOOL foundDupe = NO;
+		for (NSArray<NSString *> *pathComponents in plistFilesPathComponents) {
+			NSString *componentAtOffset = pathComponents[pathComponents.count-1 - offset];
+			if ([keySet containsObject:componentAtOffset]) {
+				foundDupe = YES;
+				break;
+			}
+			else {
+				[keySet addObject:componentAtOffset];
+				NSString *key = componentAtOffset;
+				if (offset == 0) {
+					key = [componentAtOffset stringByDeletingPathExtension];
+				}
+				[fileKeys addObject:key];
+			}
+		}
+		
+		if (foundDupe) {
+			[keySet removeAllObjects];
+			[fileKeys removeAllObjects];
+		}
+		else {
+			componentOffset = offset;
+			break;
+		}
+		
+	}
+	
+	if (componentOffset == NSNotFound) {
+		printf("Error: Could not determine a unique key for each plist.\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	return fileKeys;
+}
+
 void printUsage()
 {
-	printf("Usage: plist2objc <file.plist>\n\n");
+	printf("Usage: plist2objc <file.plist> [<file2.plist>]\n\n");
 }
 
 void dumpPlistRootedIn(id rootObj)
@@ -190,17 +251,43 @@ int main(int argc, char *argv[])
 {
 	@autoreleasepool {
 		NSError *error;
+		BOOL combineMultipleFiles = YES;
 		
 		NSArray *processArguments = [[NSProcessInfo processInfo] arguments];
 		NSUInteger argumentCount = processArguments.count;
 		
-		if (argumentCount != 2) {
+		if (argumentCount < 2) {
 			printUsage();
 			printf("Error: Invalid arguments supplied.\n");
 			return EXIT_FAILURE;
 		}
-		else {
-			NSString *plistFilePath = processArguments[1];
+		
+		const NSUInteger firstPathArgumentIndex = 1;
+		
+		NSUInteger pathCount = argumentCount - firstPathArgumentIndex;
+		NSArray *plistFilePaths = [processArguments subarrayWithRange:NSMakeRange(firstPathArgumentIndex, pathCount)];
+		
+		id <Plist2ObjC_Dumpable, NSObject> rootObj;
+		NSMutableDictionary *rootDict = nil;
+		NSMutableArray *fileKeys = nil;
+		
+		// Multiple plist files will be combined into a single data structure (`combineMultipleFiles`)
+		// or emitted as separate variables.
+		// We need unique names in both cases.
+		if (pathCount > 1) {
+			rootDict = [NSMutableDictionary dictionaryWithCapacity:pathCount];
+			rootObj = rootDict;
+			
+			fileKeys = determineFileKeys(plistFilePaths);
+			
+			if (!combineMultipleFiles) {
+				// TODO: Convert `fileKeys` into valid, unique C variable names.
+			}
+		}
+		
+		NSUInteger i = 0;
+		for (NSString *plistFilePath in plistFilePaths) {
+			NSString *plistFileKey = fileKeys ? fileKeys[i] : [[plistFilePath lastPathComponent] stringByDeletingPathExtension];
 			NSData *plistData = [NSData dataWithContentsOfFile:plistFilePath];
 			
 			id <Plist2ObjC_Dumpable, NSObject> obj =
@@ -213,9 +300,19 @@ int main(int argc, char *argv[])
 				([obj isKindOfClass:[NSDictionary class]] ||
 				 [obj isKindOfClass:[NSArray class]])
 				) {
-				dumpPlistRootedIn(rootObj);
 				
-				return EXIT_SUCCESS;
+				if (!combineMultipleFiles || (pathCount == 1)) {
+					rootObj = obj;
+				}
+				else {
+					rootDict[plistFileKey] = obj;
+				}
+				
+				if (!combineMultipleFiles) {
+					printf("id %s = \n", [plistFileKey UTF8String]);
+					dumpPlistRootedIn(rootObj);
+					printf("\n\n");
+				}
 			}
 			else {
 				// Must be an invalid file.
@@ -227,6 +324,15 @@ int main(int argc, char *argv[])
 				printf("Error: Invalid file supplied.\n");
 				return EXIT_FAILURE;
 			}
+			
+			i += 1;
 		}
+		
+		if (combineMultipleFiles) {
+			printf("id plistRoot = \n");
+			dumpPlistRootedIn(rootObj);
+		}
+		
+		return EXIT_SUCCESS;
 	}
 }
