@@ -287,7 +287,8 @@ int main(int argc, char *argv[])
 		
 		NSUInteger i = 0;
 		for (NSString *plistFilePath in plistFilePaths) {
-			NSString *plistFileKey = fileKeys ? fileKeys[i] : [[plistFilePath lastPathComponent] stringByDeletingPathExtension];
+			NSString *plistFileName = [plistFilePath lastPathComponent];
+			NSString *plistFileKey = fileKeys ? fileKeys[i] : [plistFileName stringByDeletingPathExtension];
 			NSData *plistData = [NSData dataWithContentsOfFile:plistFilePath];
 			
 			id <Plist2ObjC_Dumpable, NSObject> obj =
