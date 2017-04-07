@@ -180,6 +180,12 @@ void printUsage()
 	printf("Usage: plist2objc <file.plist>\n\n");
 }
 
+void dumpPlistRootedIn(id rootObj)
+{
+	NSString *code = [rootObj recursiveDump:0];
+	printf("%s;\n", [code UTF8String]);
+}
+
 int main(int argc, char *argv[])
 {
 	@autoreleasepool {
@@ -207,8 +213,7 @@ int main(int argc, char *argv[])
 				([obj isKindOfClass:[NSDictionary class]] ||
 				 [obj isKindOfClass:[NSArray class]])
 				) {
-				NSString *code = [obj recursiveDump:0];
-				printf("%s\n", [code UTF8String]);
+				dumpPlistRootedIn(rootObj);
 				
 				return EXIT_SUCCESS;
 			}
