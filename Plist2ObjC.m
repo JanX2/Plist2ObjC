@@ -11,6 +11,11 @@
 
 static NSString * const kIndentationString = @"\t";
 
+static NSString * const kFileNameKey = @"Plist2ObjCFileName";
+static NSString * const kFilePathKey = @"Plist2ObjCFilePath";
+static NSString * const kFileDateKey = @"Plist2ObjCFileModificationDate";
+
+
 NSString *generateIndent(NSUInteger level)
 {
 	return [@"" stringByPaddingToLength:level
@@ -236,6 +241,23 @@ NSMutableArray * determineFileKeys(NSArray *plistFilePaths) {
 	return fileKeys;
 }
 
+NSString * dateStringForFilePath(NSString *filePath) {
+	NSError *error;
+	NSFileManager *fileManager = [NSFileManager defaultManager];
+	NSDictionary *fileAttributes = [fileManager attributesOfItemAtPath:filePath
+																 error:&error];
+	if (fileAttributes == nil)  NSLog(@"Error while fetching attributes: %@", error);
+	NSDate *fileDate = [fileAttributes objectForKey:NSFileModificationDate];
+	NSString *fileDateString = [fileDate descriptionWithLocale:nil];
+	
+	return fileDateString;
+}
+
+void insertFileMetadataIntoDictionaryRoot(id obj, NSDictionary *fileMetadata) {
+	NSMutableDictionary *rootDictionary = (NSMutableDictionary *)obj;
+	[rootDictionary addEntriesFromDictionary:fileMetadata];
+}
+
 void printUsage()
 {
 	printf("Usage: plist2objc <file.plist> [<file2.plist>]\n\n");
@@ -252,6 +274,7 @@ int main(int argc, char *argv[])
 	@autoreleasepool {
 		NSError *error;
 		BOOL combineMultipleFiles = YES;
+		BOOL addFileMetadataToDictionaryRoot = NO;
 		
 		NSArray *processArguments = [[NSProcessInfo processInfo] arguments];
 		NSUInteger argumentCount = processArguments.count;
@@ -291,16 +314,33 @@ int main(int argc, char *argv[])
 			NSString *plistFileKey = fileKeys ? fileKeys[i] : [plistFileName stringByDeletingPathExtension];
 			NSData *plistData = [NSData dataWithContentsOfFile:plistFilePath];
 			
+			NSPropertyListReadOptions options =
+			addFileMetadataToDictionaryRoot ? NSPropertyListMutableContainers : NSPropertyListImmutable;
+			
 			id <Plist2ObjC_Dumpable, NSObject> obj =
 			[NSPropertyListSerialization propertyListWithData:plistData
-													  options:NSPropertyListImmutable
+													  options:options
 													   format:NULL
 														error:&error];
 			
+			BOOL rootIsDictionary = NO;
+			BOOL rootIsArray = NO;
+			
 			if (obj &&
-				([obj isKindOfClass:[NSDictionary class]] ||
-				 [obj isKindOfClass:[NSArray class]])
+				((rootIsDictionary = [obj isKindOfClass:[NSDictionary class]]) ||
+				 (rootIsArray = [obj isKindOfClass:[NSArray class]]))
 				) {
+				
+				if (rootIsDictionary &&
+					addFileMetadataToDictionaryRoot) {
+					insertFileMetadataIntoDictionaryRoot(obj,
+														 @{
+														   kFileNameKey: plistFileName,
+														   kFilePathKey: plistFilePath,
+														   kFileDateKey: dateStringForFilePath(plistFilePath),
+														   }
+														 );
+				}
 				
 				if (!combineMultipleFiles || (pathCount == 1)) {
 					rootObj = obj;
