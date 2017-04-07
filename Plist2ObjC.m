@@ -155,16 +155,24 @@ NSString *escape(NSString *str)
 
 @end
 
-// feel free to implement handling NSData and NSDate here,
-// it's not that straighforward as it is for basic data types, since
-// - as far as I know - there's no literal initializer syntax for NSDate and NSData objects.
+// Implementation for NSData and NSDate based on
+// https://github.com/fourplusone/plist2code
 
 @implementation NSData (Plist2ObjC)
 
 - (NSString *)recursiveDump:(NSUInteger)level {
-	[NSException raise:NSInvalidArgumentException
-	            format:@"Unimplemented - handling NSData is not yet supported"];
-	return nil;
+	NSUInteger length = self.length;
+	const char *bytes = self.bytes;
+	NSMutableString *str = [[NSMutableString alloc] initWithString:@"[NSData dataWithBytes:\""];
+	
+	for (NSUInteger i = 0; i < length; i++) {
+		char c =  bytes[i];
+		[str appendFormat:@"\\x%02x", c & 0xff];
+	}
+	
+	[str appendFormat:@"\" length:%ld]", length];
+	
+	return str;
 }
 
 @end
@@ -172,9 +180,8 @@ NSString *escape(NSString *str)
 @implementation NSDate (Plist2ObjC)
 
 - (NSString *)recursiveDump:(NSUInteger)level {
-	[NSException raise:NSInvalidArgumentException
-	            format:@"Unimplemented - handling NSDate is not yet supported"];
-	return nil;
+	NSTimeInterval interval = [self timeIntervalSince1970];
+	return [NSString stringWithFormat:@"[NSDate dateWithTimeIntervalSince1970:%f]", interval];
 }
 
 @end
