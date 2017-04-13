@@ -169,7 +169,7 @@ NSString *escape(NSString *str)
 	NSMutableString *str = [[NSMutableString alloc] initWithString:@"[NSData dataWithBytes:\""];
 	
 	for (NSUInteger i = 0; i < length; i++) {
-		char c =  bytes[i];
+		char c = bytes[i];
 		[str appendFormat:@"\\x%02x", c & 0xff];
 	}
 	
