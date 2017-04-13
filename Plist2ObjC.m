@@ -27,7 +27,7 @@ NSString *indentationStringForLevel(NSUInteger level)
 						startingAtIndex:0];
 }
 
-NSString *removeIndentation(NSString *str)
+NSString *removePrefixedIndentation(NSString *str)
 {
 	const NSUInteger len = str.length;
 	NSUInteger idx = 0;
@@ -127,9 +127,9 @@ NSString *escape(NSString *str)
 		}
 
 		[str appendFormat:@"%@%@",
-			 childIndent,
-			 removeIndentation([self[i] recursiveDumpWithLevel:(level + 1)
-										   			   options:options])
+		 childIndent,
+		 removePrefixedIndentation([self[i] recursiveDumpWithLevel:(level + 1)
+														   options:options])
 		 ];
 	}
 
@@ -155,10 +155,10 @@ NSString *escape(NSString *str)
 		
 		[str appendFormat:@"%@%@: %@",
 		 childIndent,
-		 removeIndentation([key recursiveDumpWithLevel:level + 1
-											   options:options]),
-		 removeIndentation([obj recursiveDumpWithLevel:level + 1
-											   options:options])
+		 removePrefixedIndentation([key recursiveDumpWithLevel:level + 1
+													   options:options]),
+		 removePrefixedIndentation([obj recursiveDumpWithLevel:level + 1
+													   options:options])
 		 ];
 		
 		i += 1;
