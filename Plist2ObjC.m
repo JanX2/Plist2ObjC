@@ -16,6 +16,10 @@ static NSString * const kFilePathKey = @"Plist2ObjCFilePath";
 static NSString * const kFileDateKey = @"Plist2ObjCFileModificationDate";
 
 
+typedef NS_OPTIONS(NSUInteger, PlistDumpOptions) {
+	PlistDumpUseSpaceForIndentation			   = 1 << 0,
+};
+
 NSString *indentationStringForLevel(NSUInteger level)
 {
 	return [@"" stringByPaddingToLength:level
@@ -66,7 +70,8 @@ NSString *escape(NSString *str)
 }
 
 @protocol Plist2ObjC_Dumpable
-- (NSString *)recursiveDump:(NSUInteger)level;
+- (NSString *)recursiveDumpWithLevel:(NSUInteger)level
+							 options:(PlistDumpOptions)options;
 @end
 
 @interface NSString (Plist2ObjC) <Plist2ObjC_Dumpable>
@@ -89,18 +94,20 @@ NSString *escape(NSString *str)
 
 @implementation NSString (Plist2ObjC)
 
-- (NSString *)recursiveDump:(NSUInteger)level {
+- (NSString *)recursiveDumpWithLevel:(NSUInteger)level
+							 options:(PlistDumpOptions)options {
 	return [NSString stringWithFormat:@"%@@\"%@\"",
-	                 indentationStringForLevel(level),
-	                 escape(self)
-	       ];
+					 indentationStringForLevel(level),
+					 escape(self)
+		   ];
 }
 
 @end
 
 @implementation NSNumber (Plist2ObjC)
 
-- (NSString *)recursiveDump:(NSUInteger)level {
+- (NSString *)recursiveDumpWithLevel:(NSUInteger)level
+							 options:(PlistDumpOptions)options {
 	return [NSString stringWithFormat:@"%@@%@", indentationStringForLevel(level), self];
 }
 
@@ -108,7 +115,8 @@ NSString *escape(NSString *str)
 
 @implementation NSArray (Plist2ObjC)
 
-- (NSString *)recursiveDump:(NSUInteger)level {
+- (NSString *)recursiveDumpWithLevel:(NSUInteger)level
+							 options:(PlistDumpOptions)options {
 	NSString *selfIndent = indentationStringForLevel(level);
 	NSString *childIndent = [selfIndent stringByAppendingString:kIndentationString];
 	NSMutableString *str = [NSMutableString stringWithString:@"@[\n"];
@@ -119,9 +127,10 @@ NSString *escape(NSString *str)
 		}
 
 		[str appendFormat:@"%@%@",
-		     childIndent,
-		     removeIndentation([self[i] recursiveDump:level + 1])
-		];
+			 childIndent,
+			 removeIndentation([self[i] recursiveDumpWithLevel:(level + 1)
+										   			   options:options])
+		 ];
 	}
 
 	[str appendFormat:@"\n%@]", selfIndent];
@@ -132,7 +141,8 @@ NSString *escape(NSString *str)
 
 @implementation NSDictionary (Plist2ObjC)
 
-- (NSString *)recursiveDump:(NSUInteger)level {
+- (NSString *)recursiveDumpWithLevel:(NSUInteger)level
+							 options:(PlistDumpOptions)options {
 	NSString *selfIndent = indentationStringForLevel(level);
 	NSString *childIndent = [selfIndent stringByAppendingString:kIndentationString];
 	NSMutableString *str = [NSMutableString stringWithString:@"@{\n"];
@@ -145,8 +155,10 @@ NSString *escape(NSString *str)
 		
 		[str appendFormat:@"%@%@: %@",
 		 childIndent,
-		 removeIndentation([key recursiveDump:level + 1]),
-		 removeIndentation([obj recursiveDump:level + 1])
+		 removeIndentation([key recursiveDumpWithLevel:level + 1
+											   options:options]),
+		 removeIndentation([obj recursiveDumpWithLevel:level + 1
+											   options:options])
 		 ];
 		
 		i += 1;
@@ -163,7 +175,8 @@ NSString *escape(NSString *str)
 
 @implementation NSData (Plist2ObjC)
 
-- (NSString *)recursiveDump:(NSUInteger)level {
+- (NSString *)recursiveDumpWithLevel:(NSUInteger)level
+							 options:(PlistDumpOptions)options {
 	NSUInteger length = self.length;
 	const char *bytes = self.bytes;
 	NSMutableString *str = [[NSMutableString alloc] initWithString:@"[NSData dataWithBytes:\""];
@@ -182,7 +195,8 @@ NSString *escape(NSString *str)
 
 @implementation NSDate (Plist2ObjC)
 
-- (NSString *)recursiveDump:(NSUInteger)level {
+- (NSString *)recursiveDumpWithLevel:(NSUInteger)level
+							 options:(PlistDumpOptions)options {
 	NSTimeInterval interval = [self timeIntervalSince1970];
 	return [NSString stringWithFormat:@"[NSDate dateWithTimeIntervalSince1970:%f]", interval];
 }
@@ -273,9 +287,10 @@ void printUsage()
 	printf("Usage: plist2objc <file.plist> [<file2.plist>]\n\n");
 }
 
-void dumpPlistRootedIn(id rootObj)
+void dumpPlistRootedIn(id rootObj, PlistDumpOptions options)
 {
-	NSString *code = [rootObj recursiveDump:0];
+	NSString *code = [rootObj recursiveDumpWithLevel:0
+											 options:options];
 	printf("%s;\n", [code UTF8String]);
 }
 
@@ -285,6 +300,8 @@ int main(int argc, char *argv[])
 		NSError *error;
 		BOOL combineMultipleFiles = YES;
 		BOOL addFileMetadataToDictionaryRoot = NO;
+		
+		PlistDumpOptions dumpOptions = PlistDumpUseSpaceForIndentation;
 		
 		NSArray *processArguments = [[NSProcessInfo processInfo] arguments];
 		NSUInteger argumentCount = processArguments.count;
@@ -361,7 +378,7 @@ int main(int argc, char *argv[])
 				
 				if (!combineMultipleFiles) {
 					printf("id %s = \n", [plistFileKey UTF8String]);
-					dumpPlistRootedIn(rootObj);
+					dumpPlistRootedIn(rootObj, dumpOptions);
 					printf("\n\n");
 				}
 			}
@@ -381,7 +398,7 @@ int main(int argc, char *argv[])
 		
 		if (combineMultipleFiles) {
 			printf("id plistRoot = \n");
-			dumpPlistRootedIn(rootObj);
+			dumpPlistRootedIn(rootObj, dumpOptions);
 		}
 		
 		return EXIT_SUCCESS;
