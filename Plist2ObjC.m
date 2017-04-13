@@ -35,8 +35,11 @@ NSString *removeIndentation(NSString *str)
 			break;
 		}
 	}
-
-	return (idx > 0) ? [str substringFromIndex:idx] : str;
+	
+	NSString *result =
+	(idx > 0) ? [str substringFromIndex:idx] : str;
+	
+	return result;
 }
 
 NSString *escape(NSString *str)
