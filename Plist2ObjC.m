@@ -16,7 +16,7 @@ static NSString * const kFilePathKey = @"Plist2ObjCFilePath";
 static NSString * const kFileDateKey = @"Plist2ObjCFileModificationDate";
 
 
-NSString *generateIndent(NSUInteger level)
+NSString *indentationStringForLevel(NSUInteger level)
 {
 	return [@"" stringByPaddingToLength:level
 							 withString:kIndentationString
@@ -88,7 +88,7 @@ NSString *escape(NSString *str)
 
 - (NSString *)recursiveDump:(NSUInteger)level {
 	return [NSString stringWithFormat:@"%@@\"%@\"",
-	                 generateIndent(level),
+	                 indentationStringForLevel(level),
 	                 escape(self)
 	       ];
 }
@@ -98,7 +98,7 @@ NSString *escape(NSString *str)
 @implementation NSNumber (Plist2ObjC)
 
 - (NSString *)recursiveDump:(NSUInteger)level {
-	return [NSString stringWithFormat:@"%@@%@", generateIndent(level), self];
+	return [NSString stringWithFormat:@"%@@%@", indentationStringForLevel(level), self];
 }
 
 @end
@@ -106,7 +106,7 @@ NSString *escape(NSString *str)
 @implementation NSArray (Plist2ObjC)
 
 - (NSString *)recursiveDump:(NSUInteger)level {
-	NSString *selfIndent = generateIndent(level);
+	NSString *selfIndent = indentationStringForLevel(level);
 	NSString *childIndent = [selfIndent stringByAppendingString:kIndentationString];
 	NSMutableString *str = [NSMutableString stringWithString:@"@[\n"];
 
@@ -130,7 +130,7 @@ NSString *escape(NSString *str)
 @implementation NSDictionary (Plist2ObjC)
 
 - (NSString *)recursiveDump:(NSUInteger)level {
-	NSString *selfIndent = generateIndent(level);
+	NSString *selfIndent = indentationStringForLevel(level);
 	NSString *childIndent = [selfIndent stringByAppendingString:kIndentationString];
 	NSMutableString *str = [NSMutableString stringWithString:@"@{\n"];
 	
