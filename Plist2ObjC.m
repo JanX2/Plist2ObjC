@@ -188,21 +188,33 @@ NSString *escape(NSString *str)
 							 options:(PlistDumpOptions)options {
 	NSString *selfIndent = indentationStringForLevelOptions(level, options);
 	NSString *childIndent = indentationStringForLevelOptions(level + 1, options);
-	NSMutableString *str = [NSMutableString stringWithString:@"@[\n"];
-
-	for (NSUInteger i = 0; i < self.count; i++) {
+	
+	NSMutableString *str = [NSMutableString string];
+	
+	[str appendString:@"@["];
+	[str appendString:@"\n"];
+	
+	size_t i = 0;
+	
+	for (id child in self) {
+		NSString *childString =
+		removePrefixedIndentation([child recursiveDumpWithLevel:(level + 1)
+														options:options]);
+		
 		if (i > 0) {
 			[str appendString:@",\n"];
 		}
-
-		[str appendFormat:@"%@%@",
-		 childIndent,
-		 removePrefixedIndentation([self[i] recursiveDumpWithLevel:(level + 1)
-														   options:options])
-		 ];
+		
+		[str appendString:childIndent];
+		[str appendString:childString];
+		
+		i += 1;
 	}
-
-	[str appendFormat:@"\n%@]", selfIndent];
+	
+	[str appendString:@"\n"];
+	[str appendString:selfIndent];
+	[str appendString:@"]"];
+	
 	return str;
 }
 
