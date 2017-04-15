@@ -28,7 +28,8 @@ static NSString * const kFileDateKey = @"Plist2ObjCFileModificationDate";
 
 
 typedef NS_OPTIONS(NSUInteger, PlistDumpOptions) {
-	PlistDumpUseSpaceForIndentation			   = 1 << 0,
+	PlistDumpUseSpaceForIndentation				= 1 << 0,
+	PlistDumpNoLineBreaksForLeafArrays			= 1 << 1,
 };
 
 
@@ -36,6 +37,12 @@ BOOL indentWithSpaces(PlistDumpOptions options)
 {
 	return (options & PlistDumpUseSpaceForIndentation);
 }
+
+BOOL noLineBreaksForLeafArrays(PlistDumpOptions options)
+{
+	return (options & PlistDumpNoLineBreaksForLeafArrays);
+}
+
 
 NSString *indentationCharacterStringForOptions(PlistDumpOptions options)
 {
@@ -186,6 +193,133 @@ NSString *escape(NSString *str)
 
 - (NSString *)recursiveDumpWithLevel:(NSUInteger)level
 							 options:(PlistDumpOptions)options {
+	BOOL wantPaddedColumnsForObjects =
+	noLineBreaksForLeafArrays(options);
+	
+	BOOL canEmitPaddedColumnsForObjects;
+	
+	if (wantPaddedColumnsForObjects) {
+		canEmitPaddedColumnsForObjects = (self.count > 0);
+		
+		for (id child in self) {
+			if (canEmitPaddedColumnsForObjects) {
+				if ([child isKindOfClass:[NSArray class]]) {
+					NSArray *childArray = (NSArray *)child;
+					for (id descendant in childArray) {
+						if ([descendant isKindOfClass:[NSArray class]] ||
+							[descendant isKindOfClass:[NSDictionary class]]) {
+							canEmitPaddedColumnsForObjects = NO;
+						}
+					}
+				}
+				else {
+					canEmitPaddedColumnsForObjects = NO;
+					break;
+				}
+			}
+			else {
+				break;
+			}
+		}
+	}
+	else {
+		canEmitPaddedColumnsForObjects = NO;
+	}
+	
+	BOOL emitPaddedColumnsForObjects =
+	wantPaddedColumnsForObjects &&
+	canEmitPaddedColumnsForObjects;
+	
+	if (emitPaddedColumnsForObjects) {
+		NSString *result =
+		[self recursiveDumpPaddedArrayChildrenWithLevel:level
+												options:options];
+		
+		if (result) {
+			return result;
+		}
+		else {
+			emitPaddedColumnsForObjects = NO;
+		}
+	}
+	
+	if (emitPaddedColumnsForObjects == NO) {
+		return [self recursiveDumpArrayChildrenWithLevel:level
+												 options:options];
+	}
+	
+	return nil;
+}
+
+- (NSString *)recursiveDumpPaddedArrayChildrenWithLevel:(NSUInteger)level
+												options:(PlistDumpOptions)options {
+	NSString *selfIndent = indentationStringForLevelOptions(level, options);
+	NSString *childIndent = indentationStringForLevelOptions(level + 1, options);
+	
+	NSMutableString *str = [NSMutableString string];
+	
+	[str appendString:@"@["];
+	[str appendString:@"\n"];
+	
+	NSUInteger *columnWidths = NULL;
+	NSUInteger columnCount = 0;
+	
+	NSMutableArray *rowColumnArray = [NSMutableArray arrayWithCapacity:self.count];
+	
+	for (id child in self) {
+		NSMutableArray *childStrings =
+		[child recursiveDumpColumnsWithLevel:level
+								columnWidths:&columnWidths
+								 columnCount:&columnCount
+									 options:options];
+		if (childStrings == nil) {
+			return nil;
+			break;
+		}
+		
+		[rowColumnArray addObject:childStrings];
+	}
+	
+	for (NSArray *row in rowColumnArray) {
+		size_t i = 0;
+		
+		[str appendString:@"@["];
+		
+		for (NSString *childString in row) {
+			if (i == 0) {
+				[str appendString:childIndent];
+			}
+			
+			[str appendString:childString];
+			[str appendString:@", "];
+			
+			NSUInteger paddingLength = columnWidths[i] - childString.length;
+			
+			if (paddingLength > 0) {
+				NSString *paddingString =
+				[@"" stringByPaddingToLength:paddingLength
+								  withString:kSpaceIndentationString
+							 startingAtIndex:0];
+				
+				[str appendString:paddingString];
+			}
+			
+			i += 1;
+		}
+		
+		[str appendString:@"]"];
+		[str appendString:@",\n"];
+	}
+	
+	[str appendString:@"\n"];
+	[str appendString:selfIndent];
+	[str appendString:@"]"];
+	
+	return str;
+}
+
+- (NSString *)recursiveDumpArrayChildrenWithLevel:(NSUInteger)level
+										  options:(PlistDumpOptions)options {
 	NSString *selfIndent = indentationStringForLevelOptions(level, options);
 	NSString *childIndent = indentationStringForLevelOptions(level + 1, options);
 	
@@ -216,6 +350,51 @@ NSString *escape(NSString *str)
 	[str appendString:@"]"];
 	
 	return str;
+}
+
+- (NSMutableArray *)recursiveDumpColumnsWithLevel:(NSUInteger)level
+									 columnWidths:(NSUInteger **)columnWidths
+									  columnCount:(NSUInteger *)columnCount
+										  options:(PlistDumpOptions)options {
+	NSCharacterSet *newlineCharacterSet = [NSCharacterSet newlineCharacterSet];
+	
+	NSUInteger selfCount = self.count;
+	if (*columnWidths == NULL) {
+		*columnWidths = calloc(selfCount, sizeof(NSUInteger));
+		
+		*columnCount = selfCount;
+	}
+	
+	if (*columnCount < selfCount) {
+		*columnCount = selfCount;
+
+		*columnWidths = reallocf(*columnWidths, *columnCount * sizeof(NSUInteger));
+	}
+
+	NSMutableArray *childStrings = [NSMutableArray arrayWithCapacity:self.count];
+	
+	size_t i = 0;
+	
+	for (id child in self) {
+		NSString *childString =
+		removePrefixedIndentation([child recursiveDumpWithLevel:(level + 1)
+												options:options]);
+		
+		[childStrings addObject:childString];
+		
+		NSRange newlineRange =
+		[childString rangeOfCharacterFromSet:newlineCharacterSet
+									 options:NSLiteralSearch];
+		if (newlineRange.location != NSNotFound) {
+			return nil;
+		}
+		
+		(*columnWidths)[i] = MAX((*columnWidths)[i], childString.length);
+		
+		i += 1;
+	}
+	
+	return childStrings;
 }
 
 @end
