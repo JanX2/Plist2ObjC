@@ -65,6 +65,7 @@
 				3D81FF261CAFE50200AC6F8C /* Products */,
 			);
 			sourceTree = "<group>";
+			usesTabs = 1;
 		};
 		3D81FF261CAFE50200AC6F8C /* Products */ = {
 			isa = PBXGroup;
