@@ -145,6 +145,53 @@ NSString *escape(NSString *str)
 	return str;
 }
 
+
+#define UNDERSCORE_CHARACTER "_"
+#define LOWERCASE_CHARACTERS "abcdefghijklmnopqrstuvwxyz"
+#define UPPERCASE_CHARACTERS "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+#define DIGIT_CHARACTERS     "0123456789"
+
+BOOL isValidCSymbolName(NSString *str)
+{
+	static NSCharacterSet *disallowedCharacterSet = nil;
+	static NSCharacterSet *allowedFirstCharacterSet = nil;
+	
+	static dispatch_once_t onceToken;
+	
+	dispatch_once(&onceToken, ^{
+		allowedFirstCharacterSet =
+		[NSCharacterSet characterSetWithCharactersInString:
+		 @""
+		 UNDERSCORE_CHARACTER
+		 LOWERCASE_CHARACTERS
+		 UPPERCASE_CHARACTERS];
+		
+		NSCharacterSet *allowedCharacterSet =
+		[NSCharacterSet characterSetWithCharactersInString:
+		 @""
+		 UNDERSCORE_CHARACTER
+		 LOWERCASE_CHARACTERS
+		 UPPERCASE_CHARACTERS
+		 DIGIT_CHARACTERS];
+		
+		disallowedCharacterSet = [allowedCharacterSet invertedSet];
+	});
+	
+	// NOTE: Does not/can not check for reserved words!
+	
+	const NSRange firstCharacterRange =
+	[str rangeOfCharacterFromSet:allowedFirstCharacterSet
+						  options:(NSLiteralSearch | NSAnchoredSearch)];
+	
+	const NSRange disallowedRange =
+	[str rangeOfCharacterFromSet:disallowedCharacterSet
+						  options:NSLiteralSearch];
+	
+	const BOOL isValid = ((firstCharacterRange.location != NSNotFound) &&
+						  (disallowedRange.location == NSNotFound));
+	return isValid;
+}
+
 @protocol Plist2ObjC_Dumpable
 - (NSString *)recursiveDumpWithLevel:(NSUInteger)level
 							 options:(PlistDumpOptions)options;
