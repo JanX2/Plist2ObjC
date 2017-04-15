@@ -30,6 +30,7 @@ static NSString * const kFileDateKey = @"Plist2ObjCFileModificationDate";
 typedef NS_OPTIONS(NSUInteger, PlistDumpOptions) {
 	PlistDumpUseSpaceForIndentation				= 1 << 0,
 	PlistDumpNoLineBreaksForLeafArrays			= 1 << 1,
+	PlistDumpAsPlainCOutput						= 1 << 2,
 };
 
 
