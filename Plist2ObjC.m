@@ -9,7 +9,18 @@
 #import <stdio.h>
 #import <Foundation/Foundation.h>
 
-static NSString * const kIndentationString = @"\t";
+static const NSUInteger kIndentationStepLength = 4;
+
+static NSString * const kTabIndentationString = @"\t";
+static const unichar	kTabIndentationCodePoint = '\t';
+static const NSUInteger kTabIndentationStepCodePointCount = 1;
+static const NSUInteger kTabIndentationStepWidth = 4;
+
+static NSString * const kSpaceIndentationString = @" ";
+static const unichar	kSpaceIndentationCodePoint = ' ';
+static const NSUInteger kSpaceIndentationStepCodePointCount = 4;
+static const NSUInteger kSpaceIndentationStepWidth = 1;
+
 
 static NSString * const kFileNameKey = @"Plist2ObjCFileName";
 static NSString * const kFilePathKey = @"Plist2ObjCFilePath";
@@ -20,11 +31,68 @@ typedef NS_OPTIONS(NSUInteger, PlistDumpOptions) {
 	PlistDumpUseSpaceForIndentation			   = 1 << 0,
 };
 
-NSString *indentationStringForLevel(NSUInteger level)
+
+BOOL indentWithSpaces(PlistDumpOptions options)
 {
-	return [@"" stringByPaddingToLength:level
-							 withString:kIndentationString
+	return (options & PlistDumpUseSpaceForIndentation);
+}
+
+NSString *indentationCharacterStringForOptions(PlistDumpOptions options)
+{
+	NSString *indentationCharacterString =
+	indentWithSpaces(options) ?
+	kSpaceIndentationString :
+	kTabIndentationString;
+	
+	return indentationCharacterString;
+}
+
+NSUInteger indentationLengthFactorForOptions(PlistDumpOptions options)
+{
+	const NSUInteger indentationLengthFactor =
+	indentWithSpaces(options) ? kSpaceIndentationStepCodePointCount : kTabIndentationStepCodePointCount;
+	
+	return indentationLengthFactor;
+}
+
+NSUInteger indentationStepWidthForOptions(PlistDumpOptions options)
+{
+	const NSUInteger indentationLengthFactor =
+	indentWithSpaces(options) ? kSpaceIndentationStepWidth : kTabIndentationStepWidth;
+	
+	return indentationLengthFactor;
+}
+
+NSString *indentationStringForWidthOptions(NSUInteger width, PlistDumpOptions options)
+{
+	if (width == 0) {
+		return @"";
+	}
+	
+	const NSUInteger indentationStepWidth = indentationStepWidthForOptions(options);
+	
+	const NSUInteger stepsForWidth = width / indentationStepWidth;
+	const NSUInteger remainder = width % indentationStepWidth;
+	
+	NSString *indentationString =
+	[@"" stringByPaddingToLength:stepsForWidth
+							 withString:indentationCharacterStringForOptions(options)
 						startingAtIndex:0];
+	
+	if (remainder > 0) {
+		[indentationString stringByPaddingToLength:remainder
+										withString:kSpaceIndentationString
+								   startingAtIndex:0];
+	}
+	
+	return indentationString;
+}
+
+NSString *indentationStringForLevelOptions(NSUInteger level, PlistDumpOptions options)
+{
+	NSUInteger width = level * kIndentationStepLength;
+	
+	return indentationStringForWidthOptions(width, options);
 }
 
 NSString *removePrefixedIndentation(NSString *str)
@@ -33,8 +101,9 @@ NSString *removePrefixedIndentation(NSString *str)
 	NSUInteger idx = 0;
 	
 	for (NSUInteger i = 0; i < len; i++) {
-		unichar c = [str characterAtIndex:i];
-		if (c != '\t') {
+		unichar codePoint = [str characterAtIndex:i];
+		if ((codePoint != kSpaceIndentationCodePoint) &&
+			(codePoint != kTabIndentationCodePoint)) {
 			idx = i;
 			break;
 		}
@@ -97,7 +166,7 @@ NSString *escape(NSString *str)
 - (NSString *)recursiveDumpWithLevel:(NSUInteger)level
 							 options:(PlistDumpOptions)options {
 	return [NSString stringWithFormat:@"%@@\"%@\"",
-					 indentationStringForLevel(level),
+					 indentationStringForLevelOptions(level, options),
 					 escape(self)
 		   ];
 }
@@ -108,7 +177,7 @@ NSString *escape(NSString *str)
 
 - (NSString *)recursiveDumpWithLevel:(NSUInteger)level
 							 options:(PlistDumpOptions)options {
-	return [NSString stringWithFormat:@"%@@%@", indentationStringForLevel(level), self];
+	return [NSString stringWithFormat:@"%@@%@", indentationStringForLevelOptions(level, options), self];
 }
 
 @end
@@ -117,8 +186,8 @@ NSString *escape(NSString *str)
 
 - (NSString *)recursiveDumpWithLevel:(NSUInteger)level
 							 options:(PlistDumpOptions)options {
-	NSString *selfIndent = indentationStringForLevel(level);
-	NSString *childIndent = [selfIndent stringByAppendingString:kIndentationString];
+	NSString *selfIndent = indentationStringForLevelOptions(level, options);
+	NSString *childIndent = indentationStringForLevelOptions(level + 1, options);
 	NSMutableString *str = [NSMutableString stringWithString:@"@[\n"];
 
 	for (NSUInteger i = 0; i < self.count; i++) {
@@ -143,8 +212,8 @@ NSString *escape(NSString *str)
 
 - (NSString *)recursiveDumpWithLevel:(NSUInteger)level
 							 options:(PlistDumpOptions)options {
-	NSString *selfIndent = indentationStringForLevel(level);
-	NSString *childIndent = [selfIndent stringByAppendingString:kIndentationString];
+	NSString *selfIndent = indentationStringForLevelOptions(level, options);
+	NSString *childIndent = indentationStringForLevelOptions(level + 1, options);
 	NSMutableString *str = [NSMutableString stringWithString:@"@{\n"];
 	
 	__block NSUInteger i = 0;
@@ -301,7 +370,7 @@ int main(int argc, char *argv[])
 		BOOL combineMultipleFiles = YES;
 		BOOL addFileMetadataToDictionaryRoot = NO;
 		
-		PlistDumpOptions dumpOptions = PlistDumpUseSpaceForIndentation;
+		PlistDumpOptions dumpOptions = 0;
 		
 		NSArray *processArguments = [[NSProcessInfo processInfo] arguments];
 		NSUInteger argumentCount = processArguments.count;
