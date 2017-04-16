@@ -152,20 +152,26 @@ NSString *escape(NSString *str)
 #define UPPERCASE_CHARACTERS "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 #define DIGIT_CHARACTERS     "0123456789"
 
+#define FIRST_CHARACTER_CONDITION_REQUIRED	0
+
 BOOL isValidCSymbolName(NSString *str)
 {
 	static NSCharacterSet *disallowedCharacterSet = nil;
+#if FIRST_CHARACTER_CONDITION_REQUIRED
 	static NSCharacterSet *allowedFirstCharacterSet = nil;
+#endif
 	
 	static dispatch_once_t onceToken;
 	
 	dispatch_once(&onceToken, ^{
+#if FIRST_CHARACTER_CONDITION_REQUIRED
 		allowedFirstCharacterSet =
 		[NSCharacterSet characterSetWithCharactersInString:
 		 @""
 		 UNDERSCORE_CHARACTER
 		 LOWERCASE_CHARACTERS
 		 UPPERCASE_CHARACTERS];
+#endif
 		
 		NSCharacterSet *allowedCharacterSet =
 		[NSCharacterSet characterSetWithCharactersInString:
@@ -180,16 +186,28 @@ BOOL isValidCSymbolName(NSString *str)
 	
 	// NOTE: Does not/can not check for reserved words!
 	
+#if FIRST_CHARACTER_CONDITION_REQUIRED
 	const NSRange firstCharacterRange =
 	[str rangeOfCharacterFromSet:allowedFirstCharacterSet
 						  options:(NSLiteralSearch | NSAnchoredSearch)];
 	
+	const BOOL firstCharacterValid =
+	(firstCharacterRange.location != NSNotFound);
+#else
+	// We currently ignore the first character,
+	// because this would exclude numbers,
+	// which we want to be able to emit as-is
+	// even when within strings.
+	const BOOL firstCharacterValid = YES;
+#endif
+	
 	const NSRange disallowedRange =
 	[str rangeOfCharacterFromSet:disallowedCharacterSet
 						  options:NSLiteralSearch];
+	const BOOL charactersValid = (disallowedRange.location == NSNotFound);
 	
-	const BOOL isValid = ((firstCharacterRange.location != NSNotFound) &&
-						  (disallowedRange.location == NSNotFound));
+	const BOOL isValid = (firstCharacterValid &&
+						  charactersValid);
 	return isValid;
 }
 
