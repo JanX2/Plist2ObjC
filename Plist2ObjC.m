@@ -191,6 +191,9 @@ NSString *escape(NSString *str)
 
 @implementation NSArray (Plist2ObjC)
 
+static NSString * const kObjCArrayPrefixString = @"@[";
+static NSString * const kObjCArraySuffixString = @"]";
+
 - (NSString *)recursiveDumpWithLevel:(NSUInteger)level
 							 options:(PlistDumpOptions)options {
 	BOOL wantPaddedColumnsForObjects =
@@ -259,7 +262,7 @@ NSString *escape(NSString *str)
 	
 	NSMutableString *str = [NSMutableString string];
 	
-	[str appendString:@"@["];
+	[str appendString:kObjCArrayPrefixString];
 	[str appendString:@"\n"];
 	
 	NSUInteger *columnWidths = NULL;
@@ -285,7 +288,7 @@ NSString *escape(NSString *str)
 		size_t i = 0;
 		
 		[str appendString:childIndent];
-		[str appendString:@"@["];
+		[str appendString:kObjCArrayPrefixString];
 		
 		for (NSString *childString in row) {
 			if (i == 0) {
@@ -310,7 +313,7 @@ NSString *escape(NSString *str)
 		}
 		
 		[str appendString:singleIndent];
-		[str appendString:@"]"];
+		[str appendString:kObjCArraySuffixString];
 		[str appendString:@",\n"];
 	}
 	
@@ -319,7 +322,7 @@ NSString *escape(NSString *str)
 	}
 	
 	[str appendString:selfIndent];
-	[str appendString:@"]"];
+	[str appendString:kObjCArraySuffixString];
 	
 	return str;
 }
@@ -331,7 +334,7 @@ NSString *escape(NSString *str)
 	
 	NSMutableString *str = [NSMutableString string];
 	
-	[str appendString:@"@["];
+	[str appendString:kObjCArrayPrefixString];
 	[str appendString:@"\n"];
 	
 	size_t i = 0;
@@ -353,7 +356,7 @@ NSString *escape(NSString *str)
 	
 	[str appendString:@"\n"];
 	[str appendString:selfIndent];
-	[str appendString:@"]"];
+	[str appendString:kObjCArraySuffixString];
 	
 	return str;
 }
