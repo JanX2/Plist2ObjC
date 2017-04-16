@@ -271,28 +271,7 @@ static NSString * const kObjCArraySuffixString = @"]";
 	BOOL canEmitPaddedColumnsForObjects;
 	
 	if (wantPaddedColumnsForObjects) {
-		canEmitPaddedColumnsForObjects = (self.count > 0);
-		
-		for (id child in self) {
-			if (canEmitPaddedColumnsForObjects) {
-				if ([child isKindOfClass:[NSArray class]]) {
-					NSArray *childArray = (NSArray *)child;
-					for (id descendant in childArray) {
-						if ([descendant isKindOfClass:[NSArray class]] ||
-							[descendant isKindOfClass:[NSDictionary class]]) {
-							canEmitPaddedColumnsForObjects = NO;
-						}
-					}
-				}
-				else {
-					canEmitPaddedColumnsForObjects = NO;
-					break;
-				}
-			}
-			else {
-				break;
-			}
-		}
+		canEmitPaddedColumnsForObjects = [self canEmitPaddedColumnsForObjects];
 	}
 	else {
 		canEmitPaddedColumnsForObjects = NO;
@@ -321,6 +300,32 @@ static NSString * const kObjCArraySuffixString = @"]";
 	}
 	
 	return nil;
+}
+- (BOOL)canEmitPaddedColumnsForObjects {
+	BOOL canEmitPaddedColumnsForObjects = (self.count > 0);
+	
+	for (id child in self) {
+		if (canEmitPaddedColumnsForObjects) {
+			if ([child isKindOfClass:[NSArray class]]) {
+				NSArray *childArray = (NSArray *)child;
+				for (id descendant in childArray) {
+					if ([descendant isKindOfClass:[NSArray class]] ||
+						[descendant isKindOfClass:[NSDictionary class]]) {
+						canEmitPaddedColumnsForObjects = NO;
+					}
+				}
+			}
+			else {
+				canEmitPaddedColumnsForObjects = NO;
+				break;
+			}
+		}
+		else {
+			break;
+		}
+	}
+	
+	return canEmitPaddedColumnsForObjects;
 }
 
 - (NSString *)recursiveDumpPaddedArrayChildrenWithLevel:(NSUInteger)level
