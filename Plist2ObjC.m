@@ -410,11 +410,16 @@ static NSString * const kObjCArraySuffixString = @"]";
 
 @implementation NSDictionary (Plist2ObjC)
 
+static NSString * const kObjCDictionaryPrefixString = @"@{";
+static NSString * const kObjCDictionarySuffixString = @"}";
+
 - (NSString *)recursiveDumpWithLevel:(NSUInteger)level
 							 options:(PlistDumpOptions)options {
 	NSString *selfIndent = indentationStringForLevelOptions(level, options);
 	NSString *childIndent = indentationStringForLevelOptions(level + 1, options);
-	NSMutableString *str = [NSMutableString stringWithString:@"@{\n"];
+	NSMutableString *str = [NSMutableString string];
+	[str appendString:kObjCDictionaryPrefixString];
+	[str appendString:@"\n"];
 	
 	__block NSUInteger i = 0;
 	[self enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
@@ -433,7 +438,10 @@ static NSString * const kObjCArraySuffixString = @"]";
 		i += 1;
 	}];
 	
-	[str appendFormat:@"\n%@}", selfIndent];
+	[str appendString:@"\n"];
+	[str appendString:selfIndent];
+	[str appendString:kObjCDictionarySuffixString];
+	
 	return str;
 }
 
