@@ -477,18 +477,24 @@ static NSString * const kObjCDictionarySuffixString = @"}";
 
 @implementation NSData (Plist2ObjC)
 
+static NSString * const kObjCDataPrefixString = @"[NSData dataWithBytes:\"";
+static NSString * const kObjCDataInfixString = @"\" length:";
+static NSString * const kObjCDataSuffixString = @"]";
+
 - (NSString *)recursiveDumpWithLevel:(NSUInteger)level
 							 options:(PlistDumpOptions)options {
 	NSUInteger length = self.length;
 	const char *bytes = self.bytes;
-	NSMutableString *str = [[NSMutableString alloc] initWithString:@"[NSData dataWithBytes:\""];
+	NSMutableString *str = [[NSMutableString alloc] initWithString:kObjCDataPrefixString];
 	
 	for (NSUInteger i = 0; i < length; i++) {
 		char c = bytes[i];
 		[str appendFormat:@"\\x%02x", c & 0xff];
 	}
 	
-	[str appendFormat:@"\" length:%ld]", length];
+	[str appendString:kObjCDataInfixString];
+	[str appendFormat:@"%ld", length];
+	[str appendString:kObjCDataSuffixString];
 	
 	return str;
 }
