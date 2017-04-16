@@ -170,12 +170,21 @@ NSString *escape(NSString *str)
 
 @implementation NSString (Plist2ObjC)
 
+static NSString * const kObjCStringPrefixString = @"@\"";
+static NSString * const kObjCStringSuffixString = @"\"";
+
 - (NSString *)recursiveDumpWithLevel:(NSUInteger)level
 							 options:(PlistDumpOptions)options {
-	return [NSString stringWithFormat:@"%@@\"%@\"",
-					 indentationStringForLevelOptions(level, options),
-					 escape(self)
-		   ];
+	NSString *selfIndent = indentationStringForLevelOptions(level, options);
+	
+	NSMutableString *str = [NSMutableString string];
+	
+	[str appendString:selfIndent];
+	[str appendString:kObjCStringPrefixString];
+	[str appendString:escape(self)];
+	[str appendString:kObjCStringSuffixString];
+	
+	return str;
 }
 
 @end
