@@ -424,16 +424,20 @@ static NSString * const kObjCDictionarySuffixString = @"}";
 	__block NSUInteger i = 0;
 	[self enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
 		if (i > 0) {
-			[str appendString:@",\n"];
+			[str appendString:@","];
+			[str appendString:@"\n"];
 		}
 		
-		[str appendFormat:@"%@%@: %@",
-		 childIndent,
-		 removePrefixedIndentation([key recursiveDumpWithLevel:level + 1
-													   options:options]),
-		 removePrefixedIndentation([obj recursiveDumpWithLevel:level + 1
-													   options:options])
-		 ];
+		NSString *keyDump = [key recursiveDumpWithLevel:level + 1
+												options:options];
+		
+		NSString *objDump = [obj recursiveDumpWithLevel:level + 1
+												options:options];
+		
+		[str appendString:childIndent];
+		[str appendString:removePrefixedIndentation(keyDump)];
+		[str appendString:@": "];
+		[str appendString:removePrefixedIndentation(objDump)];
 		
 		i += 1;
 	}];
