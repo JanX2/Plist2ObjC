@@ -211,6 +211,7 @@ BOOL isValidCSymbolName(NSString *str)
 	return isValid;
 }
 
+
 @protocol Plist2ObjC_Dumpable
 - (NSString *)recursiveDumpWithLevel:(NSUInteger)level
 							 options:(PlistDumpOptions)options;
