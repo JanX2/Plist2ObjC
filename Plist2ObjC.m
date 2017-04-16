@@ -191,9 +191,21 @@ static NSString * const kObjCStringSuffixString = @"\"";
 
 @implementation NSNumber (Plist2ObjC)
 
+static NSString * const kObjCNumberPrefixString = @"@";
+static NSString * const kObjCNumberSuffixString = @"";
+
 - (NSString *)recursiveDumpWithLevel:(NSUInteger)level
 							 options:(PlistDumpOptions)options {
-	return [NSString stringWithFormat:@"%@@%@", indentationStringForLevelOptions(level, options), self];
+	NSString *selfIndent = indentationStringForLevelOptions(level, options);
+	
+	NSMutableString *str = [NSMutableString string];
+	
+	[str appendString:selfIndent];
+	[str appendString:kObjCNumberPrefixString];
+	[str appendString:self.description];
+	[str appendString:kObjCNumberSuffixString];
+	
+	return str;
 }
 
 @end
