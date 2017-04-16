@@ -276,7 +276,7 @@ static NSString * const kObjCArraySuffixString = @"]";
 	else {
 		canEmitPaddedColumnsForObjects = NO;
 	}
-	
+
 	BOOL emitPaddedColumnsForObjects =
 	wantPaddedColumnsForObjects &&
 	canEmitPaddedColumnsForObjects;
