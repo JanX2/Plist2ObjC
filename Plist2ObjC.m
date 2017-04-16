@@ -255,6 +255,7 @@ NSString *escape(NSString *str)
 												options:(PlistDumpOptions)options {
 	NSString *selfIndent = indentationStringForLevelOptions(level, options);
 	NSString *childIndent = indentationStringForLevelOptions(level + 1, options);
+	NSString *singleIndent = indentationStringForLevelOptions(1, options);
 	
 	NSMutableString *str = [NSMutableString string];
 	
@@ -283,11 +284,12 @@ NSString *escape(NSString *str)
 	for (NSArray *row in rowColumnArray) {
 		size_t i = 0;
 		
+		[str appendString:childIndent];
 		[str appendString:@"@["];
 		
 		for (NSString *childString in row) {
 			if (i == 0) {
-				[str appendString:childIndent];
+				[str appendString:singleIndent];
 			}
 			
 			[str appendString:childString];
@@ -307,11 +309,15 @@ NSString *escape(NSString *str)
 			i += 1;
 		}
 		
+		[str appendString:singleIndent];
 		[str appendString:@"]"];
 		[str appendString:@",\n"];
 	}
 	
-	[str appendString:@"\n"];
+	if (columnWidths != NULL) {
+		free(columnWidths);
+	}
+	
 	[str appendString:selfIndent];
 	[str appendString:@"]"];
 	
