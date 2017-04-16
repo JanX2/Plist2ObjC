@@ -503,10 +503,19 @@ static NSString * const kObjCDataSuffixString = @"]";
 
 @implementation NSDate (Plist2ObjC)
 
+static NSString * const kObjCDatePrefixString = @"[NSDate dateWithTimeIntervalSince1970:";
+static NSString * const kObjCDateSuffixString = @"]";
+
 - (NSString *)recursiveDumpWithLevel:(NSUInteger)level
 							 options:(PlistDumpOptions)options {
+	NSMutableString *str = [[NSMutableString alloc] initWithString:kObjCDatePrefixString];
+	
 	NSTimeInterval interval = [self timeIntervalSince1970];
-	return [NSString stringWithFormat:@"[NSDate dateWithTimeIntervalSince1970:%f]", interval];
+	[str appendFormat:@"%f", interval];
+	
+	[str appendString:kObjCDateSuffixString];
+	
+	return str;
 }
 
 @end
