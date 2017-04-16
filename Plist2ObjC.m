@@ -599,7 +599,14 @@ int main(int argc, char *argv[])
 		for (NSString *plistFilePath in plistFilePaths) {
 			NSString *plistFileName = [plistFilePath lastPathComponent];
 			NSString *plistFileKey = fileKeys ? fileKeys[i] : [plistFileName stringByDeletingPathExtension];
-			NSData *plistData = [NSData dataWithContentsOfFile:plistFilePath];
+			NSData *plistData = [NSData dataWithContentsOfFile:plistFilePath
+													   options:0
+														 error:&error];
+			
+			if (plistData == nil) {
+				printf("%s\n", [[error description] UTF8String]);
+				continue;
+			}
 			
 			NSPropertyListReadOptions options =
 			addFileMetadataToDictionaryRoot ? NSPropertyListMutableContainers : NSPropertyListImmutable;
