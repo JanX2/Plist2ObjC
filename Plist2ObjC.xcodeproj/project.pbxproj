@@ -81,7 +81,7 @@
 			children = (
 				3D81FF281CAFE50200AC6F8C /* Plist2ObjC.m */,
 			);
-			path = Plist2ObjC;
+			name = Plist2ObjC;
 			sourceTree = "<group>";
 		};
 		3DA2E7D61E983D8500197B6F /* ObjC2Plist */ = {
